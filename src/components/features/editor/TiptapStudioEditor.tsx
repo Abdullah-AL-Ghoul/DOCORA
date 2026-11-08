@@ -242,6 +242,32 @@ export function TiptapStudioEditor({
                 })}
               </div>
             )}
+
+            {/* Non-destructive Deterministic A4 Page-Break Guides (ADR-001) */}
+            <div
+              data-testid="continuous-page-break-guides"
+              className="mt-4 border-t border-dashed border-[#CBD5E1] pt-3 text-xs text-[#475569] dark:border-[#334155] dark:text-[#94A3B8]"
+            >
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <span className="font-semibold">
+                  {isAr
+                    ? `دلائل فواصل الصفحات الإرشادية (A4 — ${pagination.maxPageContentHeightMm}mm صافي):`
+                    : `Non-Destructive A4 Page-Break Guides (${pagination.maxPageContentHeightMm}mm net height):`}
+                </span>
+                <div className="flex flex-wrap items-center gap-1.5 tabular-nums">
+                  {pagination.pageBreakGuideOffsetsMm.map((offsetMm, idx) => (
+                    <span
+                      key={offsetMm}
+                      className="rounded border border-[#CBD5E1] bg-[#F8FAFC] px-2 py-0.5 font-medium dark:border-[#334155] dark:bg-[#090A0F]"
+                    >
+                      {isAr
+                        ? `نهاية ص${idx + 1} @ ${offsetMm}mm`
+                        : `End P${idx + 1} @ ${offsetMm}mm`}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            </div>
           </section>
         )}
 

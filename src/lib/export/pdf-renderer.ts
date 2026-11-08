@@ -1,5 +1,5 @@
-import { CdmDocument } from '../cdm/schema';
-import { paginateCdmDocument } from '../cdm/pagination-engine';
+import type { CdmDocument } from '../cdm/schema.ts';
+import { paginateCdmDocument } from '../cdm/pagination-engine.ts';
 
 /**
  * DOCORA Vector PDF Renderer & 300 DPI SSIM Visual Fidelity Specification

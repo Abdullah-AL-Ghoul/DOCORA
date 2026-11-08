@@ -1,5 +1,5 @@
-import { compileCdmToDocxBuffer } from '../../src/lib/export/docx-compiler';
-import { CdmDocument } from '../../src/lib/cdm/schema';
+import { compileCdmToDocxBuffer } from '../../src/lib/export/docx-compiler.ts';
+import type { CdmDocument } from '../../src/lib/cdm/schema.ts';
 
 /**
  * Isolated Worker Executor for `docx@9.15.2` compilation

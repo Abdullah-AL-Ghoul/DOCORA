@@ -12,8 +12,8 @@ import {
   TextRun,
   WidthType,
 } from 'docx';
-import { CdmDocument } from '../cdm/schema';
-import { resolveEffectiveDirection } from '../cdm/bidi';
+import type { CdmDocument } from '../cdm/schema.ts';
+import { resolveEffectiveDirection } from '../cdm/bidi.ts';
 
 /**
  * DOCORA Native OOXML Compiler (`docx@9.15.2`)

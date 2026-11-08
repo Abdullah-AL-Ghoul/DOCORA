@@ -13,9 +13,10 @@ ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
 ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
 ENV NODE_ENV=production
 
-WORKDIR /app
-COPY package.json ./
+WORKDIR /app/workers
+COPY workers/package.json ./package.json
 RUN npm install --omit=dev
-COPY src ./src
+COPY src/lib /app/src/lib
+COPY workers/src ./src
 
 CMD ["node", "--experimental-strip-types", "src/index.ts"]

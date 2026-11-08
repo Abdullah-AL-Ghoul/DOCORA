@@ -1,5 +1,5 @@
-import { CdmBlock, CdmDocument } from './schema';
-import { resolveEffectiveDirection, segmentBidiRuns } from './bidi';
+import type { CdmBlock, CdmDocument } from './schema.ts';
+import { resolveEffectiveDirection, segmentBidiRuns } from './bidi.ts';
 
 /**
  * Stage 01.0 Pagination PoC & Deterministic Paged Layout Engine (ADR-001)

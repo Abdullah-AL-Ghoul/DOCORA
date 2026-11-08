@@ -41,7 +41,19 @@ export async function inspectZipContainerSafety(
     };
   }
 
-  const zip = await JSZip.loadAsync(buffer);
+  let zip: JSZip;
+  try {
+    zip = await JSZip.loadAsync(buffer);
+  } catch (err) {
+    return {
+      safe: false,
+      entryCount: 0,
+      totalUncompressedBytes: 0,
+      reason: `Invalid or corrupted ZIP container: ${
+        err instanceof Error ? err.message : 'Unable to parse archive'
+      }`,
+    };
+  }
   const fileNames = Object.keys(zip.files);
   if (fileNames.length > limits.maxEntries) {
     return {

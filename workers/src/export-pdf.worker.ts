@@ -1,8 +1,8 @@
 import {
   buildVectorPdfOptions,
   renderCdmToPrintableHtml,
-} from '../../src/lib/export/pdf-renderer';
-import { CdmDocument } from '../../src/lib/cdm/schema';
+} from '../../src/lib/export/pdf-renderer.ts';
+import type { CdmDocument } from '../../src/lib/cdm/schema.ts';
 
 /**
  * Isolated Worker Executor for Headless Chromium Vector PDF Rendering (`Puppeteer`)

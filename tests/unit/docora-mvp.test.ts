@@ -153,6 +153,31 @@ describe('DOCORA Phase 01 Unit Suite: OOXML RTL, Worker Fencing, AI Pricing & Co
       pageTexts: ['   '],
     });
     expect(scannedRes.classification).toBe('SCANNED_PDF_DEFERRED_TO_PHASE_03');
+
+    // Malformed / non-ZIP payload must return safe: false gracefully instead of throwing
+    const corruptedRes = await inspectZipContainerSafety(
+      Buffer.from('not-a-valid-zip-binary-payload', 'utf-8')
+    );
+    expect(corruptedRes.safe).toBe(false);
+    expect(corruptedRes.reason).toContain('Invalid or corrupted ZIP container');
+  });
+
+  it('preserves Tiptap 3.x native dir attribute on CDM <-> Tiptap JSON round-trip', async () => {
+    const { cdmToTiptapJson, tiptapJsonToCdmBlocks } = await import('@/lib/cdm/transformers');
+    const contractDoc = PRESET_DOCUMENTS['exec-contract-ar'];
+    const tiptapJson = cdmToTiptapJson(contractDoc);
+
+    // Every top-level node must include Tiptap 3.x's native `dir` attribute
+    expect(tiptapJson.content?.[0]?.attrs?.dir).toBe('rtl');
+
+    // Simulate user toggling a heading inside an RTL document to explicit LTR via setTextDirection('ltr')
+    const mutatedJson = structuredClone(tiptapJson);
+    if (mutatedJson.content?.[0]?.attrs) {
+      mutatedJson.content[0].attrs = { level: 1, dir: 'ltr' };
+    }
+
+    const roundTrippedBlocks = tiptapJsonToCdmBlocks(mutatedJson, 'rtl');
+    expect(roundTrippedBlocks[0].direction).toBe('ltr');
   });
 
   it('verifies WCAG 2.2 AA contrast ratio math (>= 4.5:1) for all semantic text pairs', () => {

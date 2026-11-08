@@ -1,4 +1,4 @@
-import type { TextDirection } from './schema';
+import type { TextDirection } from './schema.ts';
 
 /**
  * Unicode UAX #9 First-Strong Character Detector for Arabic/RTL & Latin/LTR

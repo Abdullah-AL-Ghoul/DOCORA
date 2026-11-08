@@ -24,6 +24,7 @@ export function cdmToTiptapJson(doc: CdmDocument): TiptapJsonNode {
         type: 'heading',
         attrs: {
           level: block.level,
+          dir,
           textDirection: dir,
         },
         content: [{ type: 'text', text: block.text }],
@@ -34,6 +35,7 @@ export function cdmToTiptapJson(doc: CdmDocument): TiptapJsonNode {
       content.push({
         type: 'paragraph',
         attrs: {
+          dir,
           textDirection: dir,
         },
         content: block.runs.map((run) => ({
@@ -47,25 +49,31 @@ export function cdmToTiptapJson(doc: CdmDocument): TiptapJsonNode {
       content.push({
         type: 'table',
         attrs: {
+          dir,
           textDirection: dir,
         },
         content: block.rows.map((row) => ({
           type: 'tableRow',
-          content: row.cells.map((cell) => ({
-            type: cell.isHeader ? 'tableHeader' : 'tableCell',
-            attrs: {
-              textDirection: resolveEffectiveDirection(cell.direction, cell.text, dir),
-            },
-            content: [
-              {
-                type: 'paragraph',
-                attrs: {
-                  textDirection: resolveEffectiveDirection(cell.direction, cell.text, dir),
-                },
-                content: cell.text ? [{ type: 'text', text: cell.text }] : [],
+          content: row.cells.map((cell) => {
+            const cellDir = resolveEffectiveDirection(cell.direction, cell.text, dir);
+            return {
+              type: cell.isHeader ? 'tableHeader' : 'tableCell',
+              attrs: {
+                dir: cellDir,
+                textDirection: cellDir,
               },
-            ],
-          })),
+              content: [
+                {
+                  type: 'paragraph',
+                  attrs: {
+                    dir: cellDir,
+                    textDirection: cellDir,
+                  },
+                  content: cell.text ? [{ type: 'text', text: cell.text }] : [],
+                },
+              ],
+            };
+          }),
         })),
       });
     } else if (block.type === 'callout') {
@@ -73,12 +81,13 @@ export function cdmToTiptapJson(doc: CdmDocument): TiptapJsonNode {
       content.push({
         type: 'blockquote',
         attrs: {
+          dir,
           textDirection: dir,
         },
         content: [
           {
             type: 'paragraph',
-            attrs: { textDirection: dir },
+            attrs: { dir, textDirection: dir },
             content: [
               { type: 'text', text: `${block.title} — `, marks: [{ type: 'bold' }] },
               { type: 'text', text: block.text },
@@ -90,7 +99,7 @@ export function cdmToTiptapJson(doc: CdmDocument): TiptapJsonNode {
       const dir = resolveEffectiveDirection(block.direction, block.firstPartyName, baseDir);
       content.push({
         type: 'paragraph',
-        attrs: { textDirection: dir },
+        attrs: { dir, textDirection: dir },
         content: [
           {
             type: 'text',
@@ -120,7 +129,7 @@ export function tiptapJsonToCdmBlocks(
 
   nodes.forEach((node, index) => {
     const id = `blk-${index + 1}`;
-    const rawDir = node.attrs?.textDirection;
+    const rawDir = node.attrs?.dir ?? node.attrs?.textDirection;
     const nodeDir =
       rawDir === 'rtl' || rawDir === 'ltr' || rawDir === 'auto' ? rawDir : 'auto';
 
@@ -160,6 +169,7 @@ export function tiptapJsonToCdmBlocks(
         runs,
       });
     } else if (node.type === 'table') {
+      const tableDir = resolveEffectiveDirection(nodeDir, '', fallbackDirection);
       const rows = (node.content ?? []).map((rowNode, rIdx) => ({
         id: `${id}-r${rIdx + 1}`,
         cells: (rowNode.content ?? []).map((cellNode, cIdx) => {
@@ -168,7 +178,16 @@ export function tiptapJsonToCdmBlocks(
             .map((t) => t.text ?? '')
             .join(' ')
             .trim();
-          const cellDir = resolveEffectiveDirection('auto', cellText, fallbackDirection);
+          const rawCellDir =
+            cellNode.attrs?.dir ??
+            cellNode.attrs?.textDirection ??
+            cellNode.content?.[0]?.attrs?.dir ??
+            cellNode.content?.[0]?.attrs?.textDirection;
+          const explicitCellDir =
+            rawCellDir === 'rtl' || rawCellDir === 'ltr' || rawCellDir === 'auto'
+              ? rawCellDir
+              : 'auto';
+          const cellDir = resolveEffectiveDirection(explicitCellDir, cellText, tableDir);
           return {
             id: `${id}-r${rIdx + 1}-c${cIdx + 1}`,
             text: cellText || '—',
@@ -182,12 +201,20 @@ export function tiptapJsonToCdmBlocks(
         blocks.push({
           id,
           type: 'table',
-          direction: fallbackDirection,
-          bidiVisual: fallbackDirection === 'rtl',
+          direction: tableDir,
+          bidiVisual: tableDir === 'rtl',
           rows,
         });
       }
     } else if (node.type === 'blockquote') {
+      const innerParaDir =
+        node.content?.[0]?.attrs?.dir ?? node.content?.[0]?.attrs?.textDirection;
+      const effectiveBlockquoteDir =
+        nodeDir !== 'auto'
+          ? nodeDir
+          : innerParaDir === 'rtl' || innerParaDir === 'ltr' || innerParaDir === 'auto'
+          ? innerParaDir
+          : 'auto';
       const text = (node.content ?? [])
         .flatMap((p) => p.content ?? [])
         .map((t) => t.text ?? '')
@@ -198,7 +225,7 @@ export function tiptapJsonToCdmBlocks(
           id,
           type: 'callout',
           tone: 'info',
-          direction: resolveEffectiveDirection(nodeDir, text, fallbackDirection),
+          direction: resolveEffectiveDirection(effectiveBlockquoteDir, text, fallbackDirection),
           title: fallbackDirection === 'rtl' ? 'ملاحظة تنظيمية' : 'Regulatory Note',
           text,
         });
