@@ -1,0 +1,133 @@
+@import "tailwindcss";
+
+/*
+ * DOCORA Verified WCAG 2.2 AA Design Tokens (Contrast >= 4.5:1)
+ *
+ * Verified Pairs (Plan v2.0 Section 1.3):
+ * - Light mode:
+ *   --surface-canvas: #F8FAFC (Slate 50)
+ *   --surface-paper: #FFFFFF (Pure Paper)
+ *   --ink-primary: #0F172A on #F8FAFC -> 16.8:1
+ *   --ink-secondary: #475569 on #F8FAFC -> 7.21:1
+ *   --accent-text: #4F46E5 on #FFFFFF -> 6.29:1
+ *   --accent-fill: #4F46E5 with #FFFFFF text -> 6.29:1
+ *   --status-verified-text: #047857 (Emerald 700) on #ECFDF5 -> 5.12:1 (NEVER #10B981 text on white)
+ *
+ * - Dark mode (.dark):
+ *   --surface-canvas: #090A0F (Obsidian)
+ *   --surface-paper: #12141C
+ *   --ink-primary: #F8FAFC on #090A0F -> 18.9:1
+ *   --ink-secondary: #94A3B8 on #090A0F -> 6.85:1
+ *   --accent-text: #818CF8 (Indigo 400) on #090A0F -> 6.72:1 (NEVER #6366F1 text on #090A0F)
+ *   --accent-fill: #4F46E5 with #FFFFFF text -> 6.29:1
+ *   --status-verified-text: #34D399 (Emerald 400) on #090A0F -> 10.4:1
+ */
+
+:root {
+  --surface-canvas: #F8FAFC;
+  --surface-paper: #FFFFFF;
+  --surface-panel: #FFFFFF;
+  --ink-primary: #0F172A;
+  --ink-secondary: #475569;
+  --border-subtle: #CBD5E1;
+  --accent-text: #4F46E5;
+  --accent-fill: #4F46E5;
+  --accent-on-fill: #FFFFFF;
+  --status-verified-bg: #ECFDF5;
+  --status-verified-text: #047857;
+  --status-warning-bg: #FFFBEB;
+  --status-warning-text: #B45309;
+  --status-danger-bg: #FEF2F2;
+  --status-danger-text: #B91C1C;
+}
+
+.dark {
+  --surface-canvas: #090A0F;
+  --surface-paper: #12141C;
+  --surface-panel: #11131A;
+  --ink-primary: #F8FAFC;
+  --ink-secondary: #94A3B8;
+  --border-subtle: #1E293B;
+  --accent-text: #818CF8;
+  --accent-fill: #4F46E5;
+  --accent-on-fill: #FFFFFF;
+  --status-verified-bg: #064E3B;
+  --status-verified-text: #34D399;
+  --status-warning-bg: #451A03;
+  --status-warning-text: #FBBF24;
+  --status-danger-bg: #450A0A;
+  --status-danger-text: #F87171;
+}
+
+body {
+  background-color: var(--surface-canvas);
+  color: var(--ink-primary);
+  font-family: 'IBM Plex Sans Arabic', 'Inter', system-ui, -apple-system, sans-serif;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+}
+
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Tiptap 3.x ProseMirror Structured Editor Styles */
+.ProseMirror {
+  outline: none;
+  min-height: 540px;
+  line-height: 1.75;
+}
+
+.ProseMirror h1 {
+  font-size: 1.5rem;
+  font-weight: 700;
+  margin-top: 1rem;
+  margin-bottom: 0.75rem;
+}
+
+.ProseMirror h2 {
+  font-size: 1.2rem;
+  font-weight: 700;
+  margin-top: 1.25rem;
+  margin-bottom: 0.5rem;
+}
+
+.ProseMirror p {
+  margin-bottom: 0.75rem;
+}
+
+.ProseMirror table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 1rem 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.ProseMirror th,
+.ProseMirror td {
+  border: 1px solid var(--border-subtle);
+  padding: 0.625rem 0.75rem;
+  vertical-align: top;
+}
+
+.ProseMirror th {
+  background-color: rgba(148, 163, 184, 0.14);
+  font-weight: 600;
+}
+
+.ProseMirror blockquote {
+  border-inline-start: 4px solid var(--accent-fill);
+  padding-inline-start: 1rem;
+  margin: 1rem 0;
+  color: var(--ink-secondary);
+}
+
+@media print {
+  @page {
+    size: A4;
+    margin: 20mm 22mm;
+  }
+  .no-print {
+    display: none !important;
+  }
+}
