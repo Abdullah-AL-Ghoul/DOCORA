@@ -107,6 +107,23 @@ export const CdmBlockSchema = z.discriminatedUnion('type', [
 ]);
 export type CdmBlock = z.infer<typeof CdmBlockSchema>;
 
+export const ProvenanceSourceAnchorSchema = z.object({
+  anchorId: z.string().min(1),
+  sourceTitle: z.string().min(1),
+  excerpt: z.string().min(1),
+  pageOrClause: z.string().default('Clause 1'),
+});
+export type ProvenanceSourceAnchor = z.infer<typeof ProvenanceSourceAnchorSchema>;
+
+export const ProvenanceCitationSchema = z.object({
+  citationId: z.string().min(1),
+  blockId: z.string().min(1),
+  claimText: z.string().min(1),
+  sourceAnchorId: z.string().min(1),
+  verified: z.boolean().default(true),
+});
+export type ProvenanceCitation = z.infer<typeof ProvenanceCitationSchema>;
+
 export const CdmDocumentSchema = z.object({
   cdmVersion: z.literal('1.2.0'),
   id: z.string().min(1),
@@ -131,6 +148,8 @@ export const CdmDocumentSchema = z.object({
       marginEndMm: 22,
     }),
   blocks: z.array(CdmBlockSchema).min(1),
+  sourceAnchors: z.array(ProvenanceSourceAnchorSchema).optional(),
+  provenanceCitations: z.array(ProvenanceCitationSchema).optional(),
   generationState: z
     .object({
       status: z.enum(['COMPLETE', 'INTERRUPTED', 'STREAMING']).default('COMPLETE'),
@@ -144,3 +163,4 @@ export const CdmDocumentSchema = z.object({
     }),
 });
 export type CdmDocument = z.infer<typeof CdmDocumentSchema>;
+

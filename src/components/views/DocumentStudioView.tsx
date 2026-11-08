@@ -19,6 +19,8 @@ import {
   TokenQuotaMeter,
 } from '@/components/composites';
 import { TiptapStudioEditor } from '@/components/features/editor/TiptapStudioEditor';
+import { MultiAgentReviewPanel } from '@/components/features/agents/MultiAgentReviewPanel';
+import { evaluateDocumentQuality14Vectors } from '@/lib/ai/quality/scorer';
 import { CdmDocument, DocumentLocale, TextDirection } from '@/lib/cdm/schema';
 import { PRESET_DOCUMENTS } from '@/lib/cdm/presets';
 
@@ -64,6 +66,9 @@ export function DocumentStudioView({
     null
   );
   const [pdfIngestResult, setPdfIngestResult] = useState<string | null>(null);
+
+  const liveQualityGate = evaluateDocumentQuality14Vectors(activeDoc);
+  const isExportBlockedByHardGate = liveQualityGate.gateStatus === 'BLOCKED';
 
   const handleSelectPreset = (docKey: string) => {
     const next = structuredClone(PRESET_DOCUMENTS[docKey]);
@@ -112,6 +117,9 @@ export function DocumentStudioView({
   };
 
   const handleExport = async (format: 'docx' | 'pdf') => {
+    if (isExportBlockedByHardGate) {
+      return;
+    }
     setExportStatusBanner(
       isAr
         ? `جارٍ إرسال مهمة التصدير (${format.toUpperCase()}) إلى عامل الخلفية المعزول (docora-worker)...`
@@ -213,6 +221,8 @@ export function DocumentStudioView({
             <Button
               variant="outline"
               size="sm"
+              data-testid="export-docx-btn"
+              disabled={isExportBlockedByHardGate}
               onClick={() => handleExport('docx')}
             >
               <FileSpreadsheet className="h-4 w-4 text-[#4F46E5]" aria-hidden="true" />
@@ -221,6 +231,8 @@ export function DocumentStudioView({
             <Button
               variant="primary"
               size="sm"
+              data-testid="export-pdf-btn"
+              disabled={isExportBlockedByHardGate}
               onClick={() => handleExport('pdf')}
             >
               <Download className="h-4 w-4" aria-hidden="true" />
@@ -324,6 +336,17 @@ export function DocumentStudioView({
             onContinue={handleContinueGeneration}
           />
         )}
+
+        {/* Phase 02: Multi-Agent Review & 14-Vector Quality Pulse Panel */}
+        <MultiAgentReviewPanel
+          document={activeDoc}
+          locale={locale}
+          onApplyDocumentChange={handleDocumentChange}
+          onTokensUpdated={(used, reserved) => {
+            setTokensUsed(used);
+            setTokensReserved(reserved);
+          }}
+        />
 
         {/* Main Editor & Synchronized Paged Preview */}
         <TiptapStudioEditor

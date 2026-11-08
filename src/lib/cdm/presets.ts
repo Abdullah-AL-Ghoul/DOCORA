@@ -20,6 +20,36 @@ export const PRESET_DOCUMENTS: Record<string, CdmDocument> = {
       status: 'COMPLETE',
       completedBlockCount: 8,
     },
+    sourceAnchors: [
+      {
+        anchorId: 'src-labor-law-83',
+        sourceTitle: 'نظام العمل ولائحته التنفيذية — المادة (83) حماية الأسرار التجارية وعدم المنافسة',
+        excerpt: 'يشترط لصحة شرط عدم المنافسة أن يكون محرراً ومحدداً من حيث الزمان والمكان ونوع العمل بما لا يتجاوز سنتين (24 شهراً).',
+        pageOrClause: 'المادة 83 / الفقرة 1',
+      },
+      {
+        anchorId: 'src-wps-policy-2026',
+        sourceTitle: 'لائحة نظام حماية الأجور المؤسسي (WPS) ومعايير SLA التنفيذية',
+        excerpt: 'تصرف الرواتب الأساسية الشهرية عبر نظام حماية الأجور WPS مع ربط الحوافز السنوية بتحقيق توافر تشغيلي >= 99.95%.',
+        pageOrClause: 'البند المالي 4.2',
+      },
+    ],
+    provenanceCitations: [
+      {
+        citationId: 'cit-exec-1',
+        blockId: 'p-nda',
+        claimText: 'عدم المنافسة وحماية الخوارزميات لمدة (24) شهراً وفق المادة 83 ومعايير ISO/IEC 27001',
+        sourceAnchorId: 'src-labor-law-83',
+        verified: true,
+      },
+      {
+        citationId: 'cit-exec-2',
+        blockId: 'tbl-comp',
+        claimText: 'صرف الراتب عبر نظام حماية الأجور WPS وحوافز SLA >= 99.95%',
+        sourceAnchorId: 'src-wps-policy-2026',
+        verified: true,
+      },
+    ],
     blocks: [
       {
         id: 'h-1',
@@ -165,6 +195,23 @@ export const PRESET_DOCUMENTS: Record<string, CdmDocument> = {
       status: 'COMPLETE',
       completedBlockCount: 6,
     },
+    sourceAnchors: [
+      {
+        anchorId: 'src-gemini-pricing-2026',
+        sourceTitle: 'Official Gemini API Standard Pricing & ADR-003 Governance Schedule',
+        excerpt: 'gemini-3.5-flash-lite ($0.30/$2.50), gemini-3.8-flash ($0.75/$3.75), gemini-4-argon ($2.00/$10.00 until Nov 30, 2026; $4.00/$20.00 from Dec 1, 2026).',
+        pageOrClause: 'ADR-003 Section 3.7',
+      },
+    ],
+    provenanceCitations: [
+      {
+        citationId: 'cit-board-1',
+        blockId: 'en-tbl',
+        claimText: 'Official Gemini API Standard Tier Pricing & Phase Allocation',
+        sourceAnchorId: 'src-gemini-pricing-2026',
+        verified: true,
+      },
+    ],
     blocks: [
       {
         id: 'en-h1',
@@ -280,6 +327,8 @@ export const PRESET_DOCUMENTS: Record<string, CdmDocument> = {
       lastCompletedBlockId: 'int-p1',
       resumeContextPrompt: 'استكمال البند الثالث: حوكمة أمن المعلومات ومستوى الخدمة SLA والجدول المالي.',
     },
+    sourceAnchors: [],
+    provenanceCitations: [],
     blocks: [
       {
         id: 'int-h1',

@@ -24,7 +24,7 @@ describe('GATE-03R Security Suite: Token Ledger, RLS & Zero Phase Leakage', () =
     dalStore.resetToDefault();
   });
 
-  it('enforces Zero Phase Leakage: only 0001..0004 migrations exist in supabase/migrations/', () => {
+  it('enforces Zero Phase Leakage for Phase 02: only 0001..0005 migrations exist in supabase/migrations/ (no Phase 03 OCR/Style DNA or Phase 04 Skills)', () => {
     const migrationsDir = path.resolve(process.cwd(), 'supabase/migrations');
     const files = fs.readdirSync(migrationsDir).sort();
     expect(files).toEqual([
@@ -32,7 +32,30 @@ describe('GATE-03R Security Suite: Token Ledger, RLS & Zero Phase Leakage', () =
       '0002_entitlements_and_token_ledger.sql',
       '0003_documents_and_cdm_versions.sql',
       '0004_pgmq_export_jobs.sql',
+      '0005_phase02_intelligence_and_quality.sql',
     ]);
+  });
+
+  it('verifies 0005_phase02_intelligence_and_quality.sql enforces RLS, FORCE RLS, round_number BETWEEN 1 AND 2, and hardened SECURITY DEFINER', () => {
+    const sqlPath = path.resolve(
+      process.cwd(),
+      'supabase/migrations/0005_phase02_intelligence_and_quality.sql'
+    );
+    const sql = fs.readFileSync(sqlPath, 'utf-8');
+
+    expect(sql).toContain('CREATE TABLE IF NOT EXISTS public.agent_review_sessions');
+    expect(sql).toContain('CREATE TABLE IF NOT EXISTS public.agent_review_rounds');
+    expect(sql).toContain('CREATE TABLE IF NOT EXISTS public.document_quality_reports');
+    expect(sql).toContain('CREATE TABLE IF NOT EXISTS public.model_routing_telemetry');
+    expect(sql).toContain('round_number INT NOT NULL CHECK (round_number BETWEEN 1 AND 2)');
+    expect(sql).toContain("SECURITY DEFINER\nSET search_path = ''");
+    expect(sql).toContain('v_user_id := auth.uid();');
+    expect(sql).toContain(
+      'REVOKE ALL ON FUNCTION public.record_agent_review_round(UUID, INT, JSONB, JSONB, INT, NUMERIC, TEXT) FROM PUBLIC, anon;'
+    );
+    // Ensure zero Phase 03/04 table leakage
+    expect(sql).not.toContain('user_style_profiles');
+    expect(sql).not.toContain('skills_registry');
   });
 
   it('verifies 0002_entitlements_and_token_ledger.sql uses SECURITY DEFINER SET search_path = "" and revokes PUBLIC/anon', () => {

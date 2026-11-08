@@ -391,3 +391,31 @@ export async function verifyAuthenticatedUser(
   }
   return { ...DEFAULT_DEMO_USER };
 }
+
+export async function reserveTokensForAuthenticatedUser(
+  session: AuthenticatedSession,
+  params: {
+    estimatedTokens: number;
+    idempotencyKey: string;
+    modelId?: OfficialModelId;
+    spoofedUserId?: string;
+  }
+): Promise<TokenLedgerTransaction> {
+  return dalStore.reserveTokens(session, params);
+}
+
+export async function settleTokenReservation(params: {
+  txId: string;
+  actualInputTokens: number;
+  actualOutputTokens: number;
+}): Promise<TokenLedgerTransaction> {
+  return dalStore.settleTokenReservation('service_role', params);
+}
+
+export async function refundTokenReservation(params: {
+  txId: string;
+  reasonStatus?: 'REFUNDED' | 'EXPIRED';
+}): Promise<TokenLedgerTransaction> {
+  return dalStore.releaseTokenReservation('service_role', params);
+}
+
