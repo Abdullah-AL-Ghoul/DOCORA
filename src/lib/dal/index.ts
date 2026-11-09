@@ -371,25 +371,22 @@ export const dalStore = new HardenedLedgerStore();
 
 /**
  * Independent DAL authentication verification for Route Handlers & Server Actions.
+ * Validates session through Supabase SSR / cryptographically signed session cookie.
+ * In production, zero header-based tenant spoofing is permitted.
  */
 export async function verifyAuthenticatedUser(
   requestHeaders?: Headers
 ): Promise<AuthenticatedSession> {
-  const overrideRole = requestHeaders?.get('x-docora-test-role');
-  if (overrideRole === 'anon') {
+  const { getAuthenticatedSession } = await import('../supabase/session');
+  const session = await getAuthenticatedSession(requestHeaders);
+  if (!session) {
+    // In automated Vitest unit runs without HTTP cookies, allow fallback to test fixture
+    if (process.env.NODE_ENV === 'test' && !requestHeaders?.get('x-docora-test-role')) {
+      return { ...DEFAULT_DEMO_USER };
+    }
     throw new Error('Unauthorized: No active authenticated user session');
   }
-  const overrideUserId = requestHeaders?.get('x-docora-test-user');
-  if (overrideUserId) {
-    return {
-      userId: overrideUserId,
-      email: `${overrideUserId}@docora.studio`,
-      displayName: overrideUserId,
-      planTier: 'free',
-      role: 'authenticated',
-    };
-  }
-  return { ...DEFAULT_DEMO_USER };
+  return session;
 }
 
 export async function reserveTokensForAuthenticatedUser(

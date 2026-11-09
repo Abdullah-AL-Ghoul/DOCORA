@@ -1,57 +1,85 @@
-# DOCORA — AI Document Studio (Phase 01 MVP Foundation v2.0)
+# DOCORA — AI Document Studio (Production Integration & Security Hardened)
 
-منصة **DOCORA** هي استوديو مستندات ذكي ثنائي الاتجاه (`Arabic RTL` / `English LTR`) مبني وفق المعمارية المنقحة والمعتمدة (**Plan v2.0**) مع التزام صارم بقاعدة **Zero Phase Leakage**.
-
----
-
-## 1. المبادئ الهندسية المطبقة في `Phase 01 (MVP)`
-
-1. **الفصل الصارم للمراحل (`Zero Phase Leakage`):**
-   - تحتوي `supabase/migrations/` حصرياً على ملفات الترحيل الأربعة الخاصة بالمرحلة الأولى:
-     - `0001_iam_and_profiles.sql`
-     - `0002_entitlements_and_token_ledger.sql`
-     - `0003_documents_and_cdm_versions.sql`
-     - `0004_pgmq_export_jobs.sql`
-   - تم تأجيل ميزات `Phase 02` (موجه النماذج المتقدم، نظام الوكلاء الـ 9، محرك الجودة ذي الـ 14 بُعداً)، و `Phase 03` (`Tesseract 5.5.4 OCR`، `Style DNA`)، و `Phase 04` (`Skills Registry`، مساحات عمل الفرق) بالكامل إلى مراحلها المخصصة دون أي تسرب للمخططات أو الأكواد.
-
-2. **بوابة إثبات جدوى الصفحات (`Stage 01.0 Pagination PoC` & `ADR-001`):**
-   - اختبارات إثبات الجدوى المعزولة في `tests/poc/pagination-poc.test.ts` تغطي الحالات الخمس الحرجة:
-     1. تقسيم الفقرات الطويلة عبر صفحتين.
-     2. ربط العناوين بالفقرة التالية (`keep-with-next`).
-     3. تقسيم الجداول متعددة الصفحات مع تكرار صف الترويسة (`repeatedHeaderRow`).
-     4. الحفاظ على اتجاه النصوص المختلطة (`RTL/LTR` والأرقام).
-     5. استمرارية تحديد المؤشر والنسخ عبر فواصل الصفحات.
-   - في واجهة الاستوديو: الجمع بين **المحرر المهيكل المستمر (`Continuous Structured Editor`)** و **معاينة الصفحات الطباعية الحية المتزامنة (`Synchronized Live Paged Print Preview`)**.
-
-3. **تحصين دفتر الرموز (`Token Ledger Security` — `0002_entitlements_and_token_ledger.sql`):**
-   - دوال `SECURITY DEFINER SET search_path = ''` مع تأهيل كافة الجداول بـ `public.`.
-   - سحب الصلاحيات (`REVOKE ALL`) من `PUBLIC` و `anon`.
-   - اشتقاق هوية المستخدم حصرياً من `auth.uid()` في `reserve_tokens`، وقفل الصف (`SELECT ... FOR UPDATE`) لمنع السباق المزدوج، مع تسوية واسترداد ذري عبر `service_role`.
-
-4. **دقة التصدير المزدوج (`docx@9.15.2` + `Puppeteer Vector PDF`) وعامل الخلفية (`workers/`):**
-   - تثبيت الإصدار الدقيق `docx@9.15.2` مع تفعيل `visuallyRightToLeft` (`<w:bidiVisual/>`) للجداول العربية، و `bidirectional` للفقرات، و `rightToLeft` مع `RunFonts` (`IBM Plex Sans Arabic`, `Noto Naskh Arabic`).
-   - خدمة عمال خلفية مستقلة (`workers/`) تدير الحجز (`Lease`), نبضات القلب (`Heartbeat`), رموز التسييج (`fencing_token`), وطابور الرسائل الميتة (`DLQ`).
-
-5. **التسعير الرسمي للنماذج وشفافية `store: false`:**
-   - `gemini-3.5-flash-lite`: `$0.30 / $2.50` لكل مليون رمز.
-   - `gemini-3.8-flash`: `$0.75 / $3.75` لكل مليون رمز.
-   - `gemini-4-argon`: `$2.00 / $10.00` (حتى 30 نوفمبر 2026) و `$4.00 / $20.00` (من 1 ديسمبر 2026)، غير متاح في الباقة المجانية (`Free Tier`).
-   - توثيق وتطبيق تعارض `store: false` مع `background: true` و `previous_interaction_id`، واستكمال التوليد محلياً عبر `Continue Generation`.
+منصة **DOCORA** هي استوديو مستندات ذكي مؤسسي ثنائي الاتجاه (`Arabic RTL` / `English LTR`) يجمع بين التحرير المهيكل المعتمد على **نموذج المستندات القياسي (CDM v1.2)**، والمراجعة التحريرية المتعددة الوكلاء، وضمانات الأمان وعزل المستأجرين (RLS)، ودقة التصدير المزدوج إلى وورد (`docx@9.15.2`) و `Vector PDF`.
 
 ---
 
-## 2. أوامر التشغيل والاختبار
+## 1. المعمارية والمكونات الرئيسية (Architecture Overview)
+
+1. **الأمان وعزل المستأجرين بدون أي ثغرات ترويسات (Zero Header Spoofing):**
+   - تم إلغاء الثقة في أي ترويسات تحكم من جانب العميل (`x-docora-test-user`).
+   - تعتمد المصادقة الصارمة على كوكيز الجلسة المشفرة (`HttpOnly`, `SameSite=Lax`) المتوافقة مع `Supabase SSR Auth`.
+   - عزل صارم لقاعدة البيانات عبر سياسات الأمان على مستوى الصف (`FORCE ROW LEVEL SECURITY`) لمنع أي وصول عبر المستأجرين.
+
+2. **الحفظ الدائم وإدارة دورة حياة المستندات (Durable Persistence & Autosave):**
+   - حفظ تلقائي مجدول ومضبوط زمنيًا (Debounced 300ms) عبر نقطة النهاية `PUT /api/documents/[id]`.
+   - استرجاع فوري لحالة المستند الكاملة من قاعدة البيانات عند تحديث الصفحة (`F5`) لضمان عدم فقدان أي تعديلات.
+   - مزامنة حية لمساحة العمل ومكتبة المستندات وسلة المحذوفات القابلة للاسترجاع.
+
+3. **التكامل الحقيقي مع محرك الذكاء الاصطناعي (Google Gemini API SDK):**
+   - استدعاء مباشر ومؤمن لواجهات Google Gemini (النماذج الرسمية `gemini-3.8-flash` و `gemini-3.5-flash-lite`).
+   - استخراج مخرجات مهيكلة تتوافق بدقة مع عقد ومخططات شجرة CDM (عناوين، فقرات، جداول، إشارات مرجعية).
+   - احتساب فوري وشفاف لعدد التوكنز المستهلكة من بيانات الاستجابة الرسمية (`usageMetadata`) مع دفتر حسابات ذري على مرحلتين (`Reserve` -> `Settle` -> `Refund`).
+   - اقتراحات فروقات تحريرية قابلة للمراجعة والقبول أو الرفض المباشر في المحرر (`Accept/Reject Diffs`).
+
+4. **خط أنابيب التصدير المزدوج وعامل الخلفية المعزول (Export Pipeline & Workers):**
+   - تصدير فوري وتراكمي مع طابور مهام `export_jobs` ذي عقود حجز (`Leases`) ورموز تسييج (`Fencing Tokens`).
+   - توليد ملفات وورد حقيقية (`.docx`) بواسطة `docx@9.15.2` تدعم جداول `bidiVisual` المتوافقة مع Microsoft Word دون انقلاب الأعمدة.
+   - توليد ملفات بي دي إف شعاعية قياسية (`.pdf`) مطابقة لمواصفات `ISO 32000-1` بقياس A4 الطباعي الفيزيائي الدقيق.
+
+5. **استيعاب ملفات PDF الحقيقية واستخراج النصوص (File Ingestion):**
+   - نقطة نهاية متعددة الأجزاء `POST /api/files/extract-pdf` تقبل ملفات PDF الثنائية الحقيقية (حتى 25 ميجابايت).
+   - حماية مدمجة ضد هجمات القنابل المضغوطة (`ZIP Bomb Guard`).
+   - تحليل وفك تشفير طبقة النصوص على الخادم مع كشف الصفحات المصورة التي تتطلب معالجة ضوئية (OCR).
+
+---
+
+## 2. خريطة الصفحات والمسارات (Sitemap & Routes)
+
+| فئة المسار | المسار | الوصف والوظيفة |
+|---|---|---|
+| **العام** | `/[locale]` | الصفحة الرئيسية والمطالعة التحريرية والتجربة التفاعلية المعزولة |
+| **العام** | `/[locale]/features` | استعراض القدرات المعمارية لـ CDM v1.2 ومحرك التقييم الـ 14 بُعداً |
+| **العام** | `/[locale]/how-it-works` | استعراض المراحل الخمس لدورة حياة المستند من الفكرة إلى التصدير |
+| **العام** | `/[locale]/faq` | الأسئلة الشائعة الفنية والتعاقدية |
+| **العام** | `/[locale]/privacy` & `/terms` | سياسة الخصوصية الواقعية وشروط الاستخدام المؤسسي |
+| **المصادقة** | `/[locale]/sign-in` | تسجيل الدخول مع جلسة تجريبية فورية بنقرة واحدة |
+| **المصادقة** | `/[locale]/sign-up` | إنشاء حساب مؤسسي جديد |
+| **المصادقة** | `/[locale]/forgot-password` | استعادة كلمة المرور |
+| **الاستوديو** | `/[locale]/dashboard` | مساحة العمل المركزية والإحصاءات ومسارات الإنشاء السريع |
+| **الاستوديو** | `/[locale]/documents` | مكتبة المستندات مع التصنيفات والبحث وسلة المحذوفات |
+| **الاستوديو** | `/[locale]/documents/new` | معالج إنشاء المستندات الجديد (فارغ، ذكاء اصطناعي، قوالب، استيراد PDF) |
+| **الاستوديو** | `/[locale]/documents/[id]` | استوديو التحرير والمراجعة (A4 افتراضي، مراجعة الوكلاء، التصدير) |
+| **الاستوديو** | `/[locale]/settings` | إعدادات الحساب وتفضيلات الاتجاه وحصص التوكنز |
+
+---
+
+## 3. الفهرس المعماري الموثق (Documentation Index)
+
+- مراجعة وفحص الحالة الراهنة: [`docs/audit/CURRENT_STATE_AUDIT.md`](docs/audit/CURRENT_STATE_AUDIT.md)
+- تقرير أبحاث السوق والمنافسين: [`docs/research/COMPETITIVE_LANDSCAPE.md`](docs/research/COMPETITIVE_LANDSCAPE.md)
+- معمارية النظام المستهدفة: [`docs/architecture/TARGET_ARCHITECTURE.md`](docs/architecture/TARGET_ARCHITECTURE.md)
+- تقرير المعالجة الأمنية وعزل المستأجرين: [`docs/security/SECURITY_REMEDIATION.md`](docs/security/SECURITY_REMEDIATION.md)
+- تقرير التحقق والاختبارات الشاملة: [`docs/testing/VERIFICATION_REPORT.md`](docs/testing/VERIFICATION_REPORT.md)
+- دليل الجاهزية والتشغيل الإنتاجي: [`docs/production/PRODUCTION_READINESS.md`](docs/production/PRODUCTION_READINESS.md)
+
+---
+
+## 4. أوامر التشغيل والتحقق
 
 ```powershell
-# تشغيل اختبارات الوحدات وإثبات الجدوى والأمان (Vitest)
-$env:CI="true"; npm test
+# نسخ إعدادات البيئة
+Copy-Item .env.example .env.local
 
-# فحص الأنواع الصارم (TypeScript)
-npx tsc --noEmit
+# تشغيل فحص الأنواع الصارم (TypeScript)
+npm run typecheck
 
-# البناء الإنتاجي (Next.js 16.4.5)
+# تشغيل كافة اختبارات الوحدات والأمان والتكامل (Vitest)
+npm test
+
+# تشغيل البناء الإنتاجي الكامل (Next.js 16.4.5)
 npm run build
 
-# اختبارات النهاية إلى النهاية والوصولية (Playwright + axe-core)
+# تشغيل اختبارات المتصفح والوصولية الشاملة (Playwright)
 npm run test:e2e
 ```

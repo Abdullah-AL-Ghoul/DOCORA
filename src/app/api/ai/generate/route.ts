@@ -4,18 +4,22 @@ import { dalStore, verifyAuthenticatedUser } from '@/lib/dal';
 import {
   buildStatelessInteractionConfig,
   calculateTokenCostUsd,
-  continueInterruptedGeneration,
 } from '@/lib/ai';
+import { executeGeminiGeneration } from '@/lib/ai/gemini-client';
+import { getDocumentById, saveDocument } from '@/lib/db/documents';
+import { CdmDocument } from '@/lib/cdm/schema';
 
 const GenerateRequestSchema = z.object({
   documentId: z.string().min(1),
-  action: z.enum(['generate', 'continue']).default('generate'),
+  action: z.enum(['generate', 'continue', 'refine', 'outline']).default('generate'),
   prompt: z.string().min(1).max(4000).optional(),
   idempotencyKey: z.string().min(8).max(160),
   estimatedTokens: z.number().int().min(50).max(20000).default(1200),
   modelId: z
     .enum(['gemini-3.5-flash-lite', 'gemini-3.8-flash', 'gemini-4-argon'])
     .default('gemini-3.8-flash'),
+  targetBlockId: z.string().optional(),
+  selectedText: z.string().optional(),
 });
 
 export async function POST(request: NextRequest) {
@@ -24,8 +28,12 @@ export async function POST(request: NextRequest) {
     const session = await verifyAuthenticatedUser(request.headers);
     const body = GenerateRequestSchema.parse(await request.json());
 
-    // 2. Verify document ownership in DAL
-    const doc = dalStore.getDocumentForOwner(session, body.documentId);
+    // 2. Verify document ownership in database persistence layer
+    let doc = await getDocumentById(session.userId, body.documentId);
+    if (!doc) {
+      // Fall back to dalStore if exists
+      doc = dalStore.getDocumentForOwner(session, body.documentId);
+    }
 
     // 3. Validate `store: false` stateless configuration & Free Tier restrictions
     const statelessConfig = buildStatelessInteractionConfig({
@@ -41,22 +49,43 @@ export async function POST(request: NextRequest) {
     });
 
     try {
-      const { updatedDocument, appendedBlocks, actualInputTokens, actualOutputTokens } =
-        continueInterruptedGeneration(doc);
+      // 5. Execute Gemini AI Inference (live API with fallback telemetry)
+      const generationResult = await executeGeminiGeneration({
+        modelId: body.modelId,
+        prompt: body.prompt,
+        action: body.action,
+        targetBlockId: body.targetBlockId,
+        selectedText: body.selectedText,
+        currentDocument: doc,
+      });
 
+      const updatedBlocks = [...doc.blocks, ...generationResult.appendedBlocks];
+      const updatedDocument: CdmDocument = {
+        ...doc,
+        blocks: updatedBlocks,
+        generationState: {
+          status: 'COMPLETE',
+          completedBlockCount: updatedBlocks.length,
+          lastCompletedBlockId: updatedBlocks[updatedBlocks.length - 1]?.id,
+          resumeContextPrompt: undefined,
+        },
+      };
+
+      // 6. Persist updated document to durable database
+      await saveDocument(session.userId, updatedDocument);
       dalStore.saveDocumentForOwner(session, updatedDocument);
 
-      // 5. Atomic Phase-2 Settlement via service_role
+      // 7. Atomic Phase-2 Settlement via service_role with actual token counts
       const settledTx = await dalStore.settleTokenReservation('service_role', {
         txId: reservationTx.id,
-        actualInputTokens,
-        actualOutputTokens,
+        actualInputTokens: generationResult.usage.promptTokens,
+        actualOutputTokens: generationResult.usage.completionTokens,
       });
 
       const costUsd = calculateTokenCostUsd(
         body.modelId,
-        actualInputTokens,
-        actualOutputTokens
+        generationResult.usage.promptTokens,
+        generationResult.usage.completionTokens
       );
 
       return NextResponse.json({
@@ -65,8 +94,11 @@ export async function POST(request: NextRequest) {
         statelessConfig,
         ledgerTransaction: settledTx,
         estimatedCostUsd: costUsd,
-        appendedBlockCount: appendedBlocks.length,
+        appendedBlockCount: generationResult.appendedBlocks.length,
+        diffSuggestion: generationResult.diffSuggestion,
         document: updatedDocument,
+        isLiveInference: generationResult.isLiveInference,
+        providerNotice: generationResult.providerNotice,
         entitlement: dalStore.getEntitlement(session),
       });
     } catch (genError) {

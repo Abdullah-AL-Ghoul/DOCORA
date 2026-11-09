@@ -35,17 +35,17 @@ export function LegalView({ locale, type }: LegalViewProps) {
   const privacySections = [
     {
       id: 'zero-retention',
-      title: isAr ? '1. سياسة عدم الاحتفاظ بالبيانات (Zero Data Retention)' : '1. Zero Data Retention Architecture',
+      title: isAr ? '1. خصوصية نماذج الذكاء الاصطناعي والإفصاح الفني' : '1. AI Model Privacy & Technical Disclosures',
       content: isAr
-        ? 'تلتزم DOCORA بعدم استخدام محتوى المستندات، الجداول، المخططات، أو استفسارات المستخدمين لتدريب أي نماذج ذكاء اصطناعي تجارية أو مفتوحة المصدر. يتم استدعاء واجهات البرمجة بنمط Ephemeral مع وسم store: false الصارم.'
-        : 'DOCORA enforces zero data persistence for LLM model training. All inference API calls utilize ephemeral payload isolation with store: false, guaranteeing that private enterprise data is never ingested into training corpuses.',
+        ? 'تعتمد DOCORA نمط الاستدعاء الفوري (Ephemeral Inference) مع ضبط إعداد store: false الذي يمنع حفظ سجل التفاعلات لدى مزود النماذج. لا يتم استخدام مستندات العملاء لتدريب أي نماذج ذكاء اصطناعي. يتطلب الامتثال التعاقدي الكامل لعدم الاحتفاظ بالبيانات (Contractual Zero Data Retention) تفعيل بيئة Enterprise Vertex AI المخصصة للمؤسسات.'
+        : 'DOCORA employs stateless ephemeral inference with explicit store: false configurations, preventing interaction object retention at the AI provider. Customer documents are never used for model training. Full contractual Zero Data Retention (ZDR) is provisioned under dedicated Enterprise Vertex AI deployments.',
     },
     {
       id: 'encryption',
-      title: isAr ? '2. التشفير في السكون والحركة (AES-256 & TLS 1.3)' : '2. Encryption at Rest & In-Transit',
+      title: isAr ? '2. التشفير وعزل المستأجرين (RLS & TLS 1.3)' : '2. Encryption & Multi-Tenant Isolation (RLS & TLS 1.3)',
       content: isAr
-        ? 'يتم تشفير كافة المستندات والمسودات المخزنة في النظام باستخدام تشفير AES-256 على مستوى قاعدة البيانات مع تفعيل سياسات الأمان على مستوى الصف (RLS). جميع الاتصالات مشفرة عبر بروتوكول TLS 1.3 حصراً.'
-        : 'All document payloads in PostgreSQL are encrypted at rest with AES-256 and protected via granular Row-Level Security (RLS) policies. Network communication is strictly terminated over TLS 1.3 with HSTS headers.',
+        ? 'تخضع كافة المستندات والمسودات لسياسات الأمان على مستوى الصف (Row-Level Security) في قاعدة بيانات PostgreSQL، بحيث يتعذر على أي مستخدم قراءة أو تعديل مستندات مستأجر آخر. يتم تشفير كافة الاتصالات عبر بروتوكول TLS 1.3 مع تفعيل ترويسات الأمان الصارمة.'
+        : 'All document payloads and token transactions are strictly guarded by PostgreSQL Row-Level Security (RLS) policies enforcing cryptographic tenant boundaries. Network traffic is terminated exclusively over TLS 1.3 with strict security headers.',
     },
     {
       id: 'data-ownership',

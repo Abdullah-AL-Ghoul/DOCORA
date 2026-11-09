@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import {
   FileText,
@@ -83,11 +83,50 @@ export function DocumentLibraryView({ locale }: { locale: DocumentLocale }) {
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [deletedDocState, setDeletedDocState] = useState<DocItem | null>(null);
 
+  // Synchronize with database persistence
+  useEffect(() => {
+    async function fetchUserDocs() {
+      try {
+        const res = await fetch('/api/documents');
+        if (res.ok) {
+          const data = await res.json();
+          if (data.ok && Array.isArray(data.documents) && data.documents.length > 0) {
+            const fetched: DocItem[] = data.documents.map((d: any) => ({
+              id: d.id,
+              title: d.title,
+              category: (d.category as any) || 'contracts',
+              locale: d.locale,
+              wordCount: d.blocks
+                ? d.blocks.reduce(
+                    (acc: number, b: any) =>
+                      acc + (b.text ? b.text.split(/\s+/).length : b.runs ? b.runs.reduce((rAcc: number, r: any) => rAcc + r.text.split(/\s+/).length, 0) : 0),
+                    0
+                  )
+                : 500,
+              updatedAt: isAr ? 'محدّث مؤخراً' : 'Recently updated',
+              gateStatus: 'READY' as const,
+              isDeleted: false,
+            }));
+            setDocuments(fetched);
+          }
+        }
+      } catch {
+        // Fall back to initial docs
+      }
+    }
+    fetchUserDocs();
+  }, [isAr]);
+
   // Soft delete handler
-  const handleDelete = (id: string) => {
+  const handleDelete = async (id: string) => {
     setDocuments((prev) =>
       prev.map((doc) => (doc.id === id ? { ...doc, isDeleted: true } : doc))
     );
+    try {
+      await fetch(`/api/documents/${id}`, { method: 'DELETE' });
+    } catch {
+      // Ignore
+    }
   };
 
   // Restore handler

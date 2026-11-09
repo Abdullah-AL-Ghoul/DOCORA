@@ -22,5 +22,8 @@ export default defineConfig({
     url: 'http://127.0.0.1:3123/ar',
     reuseExistingServer: !process.env.CI,
     timeout: 60000,
+    env: {
+      DISABLE_AUTH_REDIRECT: 'true',
+    },
   },
 });

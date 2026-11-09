@@ -36,12 +36,26 @@ export function AuthView({ locale, mode }: AuthViewProps) {
   const [message, setMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  // 1-click Instant Guest Sandbox Session
-  const handleGuestSession = () => {
+  // 1-click Instant Guest Sandbox Session with real session cookie
+  const handleGuestSession = async () => {
     setLoading(true);
-    setTimeout(() => {
-      router.push(`/${locale}/dashboard`);
-    }, 300);
+    setErrorMessage(null);
+    try {
+      const res = await fetch('/api/auth/guest-session', {
+        method: 'POST',
+      });
+      const data = await res.json();
+      if (data.ok) {
+        router.push(`/${locale}/dashboard`);
+        router.refresh();
+      } else {
+        setErrorMessage(data.error || 'Failed to initialize session');
+      }
+    } catch {
+      setErrorMessage(isAr ? 'تعذر الاتصال بخدمة المصادقة' : 'Unable to connect to auth service');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -55,19 +69,37 @@ export function AuthView({ locale, mode }: AuthViewProps) {
     }
 
     setLoading(true);
-    // Real validation and redirection to authenticated dashboard
-    setTimeout(() => {
-      setLoading(false);
+
+    try {
       if (mode === 'forgot-password') {
         setMessage(
           isAr
             ? 'تم إرسال رابط إعادة تعيين كلمة المرور إلى بريدك الإلكتروني.'
             : 'Password reset link has been dispatched to your email address.'
         );
-      } else {
-        router.push(`/${locale}/dashboard`);
+        setLoading(false);
+        return;
       }
-    }, 400);
+
+      const endpoint = mode === 'sign-in' ? '/api/auth/sign-in' : '/api/auth/sign-up';
+      const res = await fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
+      });
+
+      const data = await res.json();
+      if (data.ok) {
+        router.push(`/${locale}/dashboard`);
+        router.refresh();
+      } else {
+        setErrorMessage(data.error || (isAr ? 'فشلت عملية المصادقة' : 'Authentication failed'));
+      }
+    } catch {
+      setErrorMessage(isAr ? 'تعذر الاتصال بخدمة المصادقة' : 'Unable to connect to auth service');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (

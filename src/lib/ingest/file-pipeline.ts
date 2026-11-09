@@ -109,6 +109,72 @@ export interface DigitalPdfExtractionResult {
   phaseNotice?: string;
 }
 
+/**
+ * Parses raw PDF binary bytes on the server, extracting text chunks from text streams
+ * and identifying page counts and text-layer presence.
+ */
+export function extractTextFromPdfBinaryBuffer(buffer: Buffer): {
+  pageCount: number;
+  pageTexts: string[];
+  isScanned: boolean;
+} {
+  if (buffer.byteLength < 5) {
+    throw new Error('Invalid PDF binary payload: file is too small');
+  }
+
+  const magic = buffer.subarray(0, 5).toString('ascii');
+  if (!magic.startsWith('%PDF-')) {
+    throw new Error('Invalid file format: missing %PDF- header magic bytes');
+  }
+
+  const raw = buffer.toString('utf-8');
+
+  // Count /Type /Page objects
+  const pageMatches = raw.match(/\/Type\s*\/Page\b/g);
+  const pageCount = Math.max(1, pageMatches ? pageMatches.length : 1);
+
+  // Extract text runs inside streams: BT ... ET
+  const textMatches: string[] = [];
+  const textStreamRegex = /BT([\s\S]*?)ET/g;
+  let match: RegExpExecArray | null;
+
+  while ((match = textStreamRegex.exec(raw)) !== null) {
+    const block = match[1];
+    // Match string literals ( ... ) Tj with support for escaped parentheses: \( and \)
+    const stringLiteralRegex = /\(((?:[^()\\]|\\.)*)\)\s*Tj/g;
+    let litMatch: RegExpExecArray | null;
+    while ((litMatch = stringLiteralRegex.exec(block)) !== null) {
+      const clean = litMatch[1]
+        .replace(/\\([0-7]{1,3})/g, (_, oct) => String.fromCharCode(parseInt(oct, 8)))
+        .replace(/\\([\\()])/g, '$1')
+        .replace(/\r?\n/g, ' ')
+        .trim();
+      if (clean) textMatches.push(clean);
+    }
+  }
+
+  const fullExtracted = textMatches.join(' ');
+  const isScanned = fullExtracted.length < 20;
+
+  // Approximate division across pages
+  const pageTexts: string[] = [];
+  if (pageCount === 1 || isScanned) {
+    pageTexts.push(fullExtracted || ' ');
+  } else {
+    const chunkSize = Math.ceil(textMatches.length / pageCount);
+    for (let p = 0; p < pageCount; p++) {
+      const pageSlice = textMatches.slice(p * chunkSize, (p + 1) * chunkSize);
+      pageTexts.push(pageSlice.join(' ') || ' ');
+    }
+  }
+
+  return {
+    pageCount,
+    pageTexts,
+    isScanned,
+  };
+}
+
 export function classifyAndExtractDigitalPdfText(params: {
   pageTexts: string[];
 }): DigitalPdfExtractionResult {

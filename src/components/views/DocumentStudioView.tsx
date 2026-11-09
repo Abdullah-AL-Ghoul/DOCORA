@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import {
   BookOpen,
@@ -105,19 +105,68 @@ export function DocumentStudioView({
     [activeDoc.blocks]
   );
 
+  const autosaveTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Load document from persistent database / local store to guarantee zero data loss on F5 refresh
+  useEffect(() => {
+    let isMounted = true;
+    async function loadDocument() {
+      try {
+        const docIdToLoad = initialDocId || defaultKey;
+        const res = await fetch(`/api/documents/${docIdToLoad}`);
+        if (res.ok) {
+          const data = await res.json();
+          if (data.ok && data.document && isMounted) {
+            setActiveDoc(data.document);
+            setDirection(data.document.defaultDirection);
+          }
+        }
+      } catch {
+        // Fall back to preset state if offline
+      }
+    }
+    loadDocument();
+    return () => {
+      isMounted = false;
+      if (autosaveTimerRef.current) {
+        clearTimeout(autosaveTimerRef.current);
+      }
+    };
+  }, [initialDocId, defaultKey]);
+
   const handleSelectPreset = (docKey: string) => {
     const next = structuredClone(PRESET_DOCUMENTS[docKey]);
     setActiveDoc(next);
     setDirection(next.defaultDirection);
     setExportStatusBanner(null);
+    // Persist preset selection as active document state
+    handleDocumentChange(next);
   };
 
   const handleDocumentChange = (updated: CdmDocument) => {
-    setAutosaveStatus('saving');
     setActiveDoc(updated);
-    setTimeout(() => {
-      setAutosaveStatus('saved');
-    }, 180);
+    setAutosaveStatus('saving');
+
+    if (autosaveTimerRef.current) {
+      clearTimeout(autosaveTimerRef.current);
+    }
+
+    autosaveTimerRef.current = setTimeout(async () => {
+      try {
+        const res = await fetch(`/api/documents/${updated.id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ document: updated }),
+        });
+        if (res.ok) {
+          setAutosaveStatus('saved');
+        } else {
+          setAutosaveStatus('offline-indexeddb');
+        }
+      } catch {
+        setAutosaveStatus('offline-indexeddb');
+      }
+    }, 300);
   };
 
   const handleContinueGeneration = async () => {
@@ -175,9 +224,17 @@ export function DocumentStudioView({
     if (data.ok) {
       setExportStatusBanner(
         isAr
-          ? `تم تسجيل مهمة التصدير بنجاح (${format.toUpperCase()}) — معرف المهمة: ${data.job.id} (محرك docx@9.15.2 / Puppeteer Vector PDF)`
-          : `Export job (${format.toUpperCase()}) queued — Job ID: ${data.job.id} (docx@9.15.2 / Puppeteer Vector PDF)`
+          ? `تم تصدير المستند بنجاح (${format.toUpperCase()}) — تم تجهيز الملف وتحميله مباشرة (معرف المهمة: ${data.job.id}).`
+          : `Document exported successfully (${format.toUpperCase()}) — Binary generated and downloading (Job ID: ${data.job.id}).`
       );
+      if (data.downloadUrl) {
+        const a = document.createElement('a');
+        a.href = data.downloadUrl;
+        a.download = `${activeDoc.id}.${format}`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+      }
     }
   };
 

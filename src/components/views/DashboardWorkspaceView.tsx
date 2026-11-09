@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import {
   FilePlus2,
@@ -76,6 +76,30 @@ export function DashboardWorkspaceView({ locale }: { locale: DocumentLocale }) {
       updatedAtLabel: '2026-11-08 11:00 UTC',
     }))
   );
+
+  useEffect(() => {
+    async function loadLiveDocuments() {
+      try {
+        const res = await fetch('/api/documents');
+        if (res.ok) {
+          const data = await res.json();
+          if (data.ok && Array.isArray(data.documents) && data.documents.length > 0) {
+            setItems(
+              data.documents.map((doc: CdmDocument, idx: number) => ({
+                doc,
+                trashed: false,
+                pinned: idx === 0,
+                updatedAtLabel: 'محدّث في قاعدة البيانات',
+              }))
+            );
+          }
+        }
+      } catch {
+        // Keep presets
+      }
+    }
+    loadLiveDocuments();
+  }, []);
 
   const activeItems = useMemo(
     () =>
