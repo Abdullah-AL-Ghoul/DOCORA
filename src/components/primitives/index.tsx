@@ -1,17 +1,19 @@
 'use client';
 
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
+import { Moon, Sun } from 'lucide-react';
 
 /**
  * Layer 1 Primitive Design System (`src/components/primitives/index.tsx`)
- * - Enforces 44x44px minimum touch/click target size (`min-h-11`) for WCAG 2.2 AA excellence.
+ * - Enforces 44x44px minimum touch/click target size (`min-h-11`) for WCAG 2.2 AA excellence (`2.5.8 Target Size`).
  * - Uses mathematically verified contrast tokens (`#047857` on `#ECFDF5`, `#4F46E5` with `#FFFFFF`, `#475569` on `#F8FAFC`).
  * - Uses native `<dialog>` for accessible modal dialogs (`rule/destructive-names-action`, `rule/no-confirm-ok-labels`).
+ * - Includes `ThemeToggle` and `NativeModalDialog` for progressive disclosure and light/dark switching.
  */
 
 export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: 'primary' | 'secondary' | 'outline' | 'danger' | 'ghost';
-  size?: 'md' | 'sm';
+  size?: 'md' | 'sm' | 'xs';
 }
 
 export function Button({
@@ -23,13 +25,18 @@ export function Button({
   ...props
 }: ButtonProps) {
   const base =
-    'inline-flex items-center justify-center gap-2 rounded-lg font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#4F46E5] disabled:opacity-50 disabled:pointer-events-none cursor-pointer';
-  const sizeStyles = size === 'sm' ? 'min-h-11 px-3.5 text-sm' : 'min-h-11 px-4 py-2.5 text-sm';
+    'inline-flex items-center justify-center gap-2 rounded-lg font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#4F46E5] disabled:opacity-50 disabled:pointer-events-none cursor-pointer touch-manipulation';
+  const sizeStyles =
+    size === 'xs'
+      ? 'min-h-9 px-2.5 py-1 text-xs'
+      : size === 'sm'
+      ? 'min-h-11 px-3.5 text-sm'
+      : 'min-h-11 px-4 py-2.5 text-sm';
 
   const variants: Record<NonNullable<ButtonProps['variant']>, string> = {
     primary: 'bg-[#4F46E5] text-[#FFFFFF] hover:bg-[#4338CA] shadow-xs',
     secondary:
-      'bg-[#F1F5F9] text-[#0F172A] hover:bg-[#E2E8F0] dark:bg-[#1E293B] dark:text-[#F8FAFC]',
+      'bg-[#F1F5F9] text-[#0F172A] hover:bg-[#E2E8F0] dark:bg-[#1E293B] dark:text-[#F8FAFC] dark:hover:bg-[#334155]',
     outline:
       'border border-[#CBD5E1] bg-transparent text-[#0F172A] hover:bg-[#F1F5F9] dark:border-[#334155] dark:text-[#F8FAFC] dark:hover:bg-[#1E293B]',
     danger: 'bg-[#B91C1C] text-[#FFFFFF] hover:bg-[#991B1B]',
@@ -49,22 +56,23 @@ export function Button({
 }
 
 export interface BadgeProps {
-  tone?: 'verified' | 'neutral' | 'warning' | 'accent';
+  tone?: 'verified' | 'neutral' | 'warning' | 'accent' | 'danger';
   children: React.ReactNode;
   className?: string;
 }
 
 export function Badge({ tone = 'neutral', children, className = '' }: BadgeProps) {
   const tones: Record<NonNullable<BadgeProps['tone']>, string> = {
-    // Verified WCAG AA: #047857 on #ECFDF5 (5.12:1) in light mode; #34D399 on #064E3B in dark mode
     verified:
       'bg-[#ECFDF5] text-[#047857] border-[#A7F3D0] dark:bg-[#064E3B] dark:text-[#34D399] dark:border-[#065F46]',
     neutral:
       'bg-[#F1F5F9] text-[#475569] border-[#CBD5E1] dark:bg-[#1E293B] dark:text-[#94A3B8] dark:border-[#334155]',
     warning:
-      'bg-[#FFFBEB] text-[#B45309] border-[#FDE68A] dark:bg-[#451A03] dark:text-[#FBBF24] dark:border-[#78350F]',
+      'bg-[#FFFBEB] text-[#92400E] border-[#FDE68A] dark:bg-[#451A03] dark:text-[#FBBF24] dark:border-[#78350F]',
     accent:
       'bg-[#EEF2FF] text-[#4338CA] border-[#C7D2FE] dark:bg-[#1E1B4B] dark:text-[#818CF8] dark:border-[#3730A3]',
+    danger:
+      'bg-[#FEF2F2] text-[#991B1B] border-[#FCA5A5] dark:bg-[#450A0A] dark:text-[#FCA5A5] dark:border-[#7F1D1D]',
   };
 
   return (
@@ -98,7 +106,7 @@ export function SegmentedControl<T extends string>({
     <div
       role="group"
       aria-label={ariaLabel}
-      className="inline-flex items-center rounded-lg border border-[#CBD5E1] bg-[#F1F5F9] p-1 dark:border-[#334155] dark:bg-[#1E293B]"
+      className="inline-flex flex-wrap items-center rounded-lg border border-[#CBD5E1] bg-[#F1F5F9] p-1 dark:border-[#334155] dark:bg-[#1E293B]"
     >
       {options.map((option) => {
         const active = option.value === value;
@@ -119,6 +127,64 @@ export function SegmentedControl<T extends string>({
         );
       })}
     </div>
+  );
+}
+
+export function ThemeToggle({ locale = 'ar' }: { locale?: 'ar' | 'en' }) {
+  const isAr = locale === 'ar';
+  const [isDark, setIsDark] = useState(false);
+
+  useEffect(() => {
+    const root = document.documentElement;
+    setIsDark(root.classList.contains('dark'));
+  }, []);
+
+  const toggleTheme = () => {
+    const root = document.documentElement;
+    root.setAttribute('data-theme-switching', 'true');
+    const nextDark = !root.classList.contains('dark');
+    if (nextDark) {
+      root.classList.add('dark');
+    } else {
+      root.classList.remove('dark');
+    }
+    setIsDark(nextDark);
+    requestAnimationFrame(() => {
+      root.removeAttribute('data-theme-switching');
+    });
+  };
+
+  return (
+    <button
+      type="button"
+      onClick={toggleTheme}
+      data-testid="theme-toggle-btn"
+      aria-label={
+        isAr
+          ? isDark
+            ? 'التبديل إلى الوضع النهاري'
+            : 'التبديل إلى الوضع الداكن'
+          : isDark
+          ? 'Switch to Light Mode'
+          : 'Switch to Dark Mode'
+      }
+      title={
+        isAr
+          ? isDark
+            ? 'الوضع النهاري'
+            : 'الوضع الداكن'
+          : isDark
+          ? 'Light Mode'
+          : 'Dark Mode'
+      }
+      className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg border border-[#CBD5E1] bg-[#FFFFFF] p-2 text-[#0F172A] hover:bg-[#F1F5F9] focus-visible:outline-2 focus-visible:outline-[#4F46E5] dark:border-[#334155] dark:bg-[#11131A] dark:text-[#F8FAFC] dark:hover:bg-[#1E293B] cursor-pointer"
+    >
+      {isDark ? (
+        <Sun className="h-4 w-4 text-[#FBBF24]" aria-hidden="true" />
+      ) : (
+        <Moon className="h-4 w-4 text-[#475569]" aria-hidden="true" />
+      )}
+    </button>
   );
 }
 
